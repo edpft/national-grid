@@ -1,67 +1,106 @@
+use anyhow;
+use geo_types::{CoordNum, Coordinate};
+use num::cast::cast;
+use num::Integer;
 use std::fmt;
-use std::num::ParseIntError;
 use std::str::FromStr;
 
-const LETTERS: [&str; 156] = [
-    "H", "J", "N", "O", "S", "T", "HA", "HB", "HC", "HD", "HE", "HF", "HG", "HH", "HJ", "HK", "HL",
-    "HM", "HN", "HO", "HP", "HQ", "HR", "HS", "HT", "HU", "HV", "HW", "HX", "HY", "HZ", "JA", "JB",
-    "JC", "JD", "JE", "JF", "JG", "JH", "JJ", "JK", "JL", "JM", "JN", "JO", "JP", "JQ", "JR", "JS",
-    "JT", "JU", "JV", "JW", "JX", "JY", "JZ", "NA", "NB", "NC", "ND", "NE", "NF", "NG", "NH", "NJ",
-    "NK", "NL", "NM", "NN", "NO", "NP", "NQ", "NR", "NS", "NT", "NU", "NV", "NW", "NX", "NY", "NZ",
-    "OA", "OB", "OC", "OD", "OE", "OF", "OG", "OH", "OJ", "OK", "OL", "OM", "ON", "OO", "OP", "OQ",
-    "OR", "OS", "OT", "OU", "OV", "OW", "OX", "OY", "OZ", "SA", "SB", "SC", "SD", "SE", "SF", "SG",
-    "SH", "SJ", "SK", "SL", "SM", "SN", "SO", "SP", "SQ", "SR", "SS", "ST", "SU", "SV", "SW", "SX",
-    "SY", "SZ", "TA", "TB", "TC", "TD", "TE", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TO",
-    "TP", "TQ", "TR", "TS", "TT", "TU", "TV", "TW", "TX", "TY", "TZ",
+const GRID: [[&str; 7]; 15] = [
+    ["SV", "SW", "SX", "SY", "SZ", "TV", "TW"],
+    ["SQ", "SR", "SS", "ST", "SU", "TQ", "TR"],
+    ["SL", "SM", "SN", "SO", "SP", "TL", "TM"],
+    ["SF", "SG", "SH", "SJ", "SK", "TF", "TG"],
+    ["SA", "SB", "SC", "SD", "SE", "TA", "TB"],
+    ["NV", "NW", "NX", "NY", "NZ", "OV", "OW"],
+    ["NQ", "NR", "NS", "NT", "NU", "OQ", "OR"],
+    ["NL", "NM", "NN", "NO", "NP", "OL", "OM"],
+    ["NF", "NG", "NH", "NJ", "NK", "OF", "OG"],
+    ["NA", "NB", "NC", "ND", "NE", "OA", "OB"],
+    ["HV", "HW", "HX", "HY", "HZ", "JV", "JW"],
+    ["HQ", "HR", "HS", "HT", "HU", "JQ", "JR"],
+    ["HL", "HM", "HN", "HO", "HP", "JL", "JM"],
+    ["HF", "HG", "HH", "HJ", "HK", "JF", "JG"],
+    ["HA", "HB", "HC", "HD", "HE", "JA", "JB"],
 ];
 
+#[derive(Debug)]
 pub struct Reference {
     letters: String,
-    eastings: String,
-    northings: String,
+    eastings: Option<String>,
+    northings: Option<String>,
+    resolution: usize,
 }
 
-impl Reference {
-    fn new(letters: &str, eastings: &str, northings: &str) -> Reference {
-        let numbers = 0..99_999;
+fn get_resolution(reference_string: &str) -> usize {
+    match reference_string.len() {
+        2 => 100_000,
+        4 => 10_000,
+        6 => 1_000,
+        8 => 100,
+        10 => 10,
+        _ => 1,
+    }
+}
 
-        if !LETTERS.contains(&letters) {
-            panic!("Letters must be in {:?}, got {}.", LETTERS, &letters);
-        } else if !numbers.contains(&eastings.parse::<u32>().unwrap()) {
-            panic!("Eastings must be between 0 and 99,999, got {}.", &eastings);
-        } else if !numbers.contains(&northings.parse::<u32>().unwrap()) {
-            panic!("Eastings must be between 0 and 99,999, got {}.", &northings);
-        } else {
-            Reference {
-                letters: letters.to_string(),
-                eastings: eastings.to_string(),
-                northings: northings.to_string(),
-            }
-        }
+impl FromStr for Reference {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Reference> {
+        let resolution: usize = get_resolution(&s);
+        let (letters, numbers): (&str, &str) = s.split_at(2);
+        let midpoint: usize = numbers.len() / 2;
+        let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
+        Ok(Reference {
+            letters: letters.to_string(),
+            eastings: Some(eastings.to_string()),
+            northings: Some(northings.to_string()),
+            resolution: resolution,
+        })
     }
 }
 
 impl fmt::Display for Reference {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}", self.letters, self.eastings, self.northings)
+        write!(
+            f,
+            "{}{}{}",
+            self.letters,
+            self.eastings.as_ref().unwrap(),
+            self.northings.as_ref().unwrap()
+        )
     }
 }
 
-impl FromStr for Reference {
-    type Err = ParseIntError;
+pub trait ToBngParts {
+    fn to_bng_parts(&self) -> (usize, String);
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let numbers_index: usize = s.find(char::is_numeric).unwrap();
-        let (letters, numbers): (&str, &str) = s.split_at(numbers_index);
-        let midpoint: usize = numbers.len() / 2;
-        let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
-        Ok(Reference::new(&letters, &eastings, &northings))
+impl<T> ToBngParts for T
+where
+    T: CoordNum,
+{
+    fn to_bng_parts(&self) -> (usize, String) {
+        let coordinate: usize = cast(*self).unwrap();
+        let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
+        let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
+        (coordinate_quotient, coordinate_remainder)
     }
 }
 
-fn main() {
-    let reference = Reference::new("HA", "00", "00");
-    let reference_string = reference.to_string();
-    let reference_from_string = Reference::from_str(&reference_string).unwrap();
-    println!("{}", reference_from_string);
+impl<T> TryFrom<Coordinate<T>> for Reference
+where
+    T: CoordNum,
+{
+    type Error = ();
+
+    fn try_from(coordinate: Coordinate<T>) -> Result<Self, Self::Error> {
+        let (eastings_quotient, eastings_remainder) = coordinate.x.to_bng_parts();
+        let (northings_quotient, northings_remainder) = coordinate.y.to_bng_parts();
+        Ok(Reference {
+            letters: GRID[northings_quotient][eastings_quotient].to_string(),
+            eastings: Some(eastings_remainder.to_string()),
+            northings: Some(northings_remainder.to_string()),
+            resolution: 1,
+        })
+    }
 }
