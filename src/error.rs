@@ -1,13 +1,13 @@
 pub type BngResult<T> = std::result::Result<T, BngError>;
 
 pub enum BngError {
-    Badness(),
+    InvalidReferenceString(String),
 }
 
 impl std::fmt::Display for BngError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BngError::Badness() => write!(f, "Not so good..."),
+            BngError::InvalidReferenceString(string) => write!(f, "{}", string),
         }
     }
 }
@@ -15,7 +15,7 @@ impl std::fmt::Display for BngError {
 impl std::fmt::Debug for BngError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Badness() => f.debug_tuple("Badness").finish(),
+            Self::InvalidReferenceString(string) => f.debug_tuple(string).finish(),
         }
     }
 }
