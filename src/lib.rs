@@ -1,4 +1,6 @@
-use anyhow;
+pub mod error;
+
+use error::{BngError, BngResult};
 use geo_types::{CoordNum, Coordinate};
 use num::cast::cast;
 use num::Integer;
@@ -38,23 +40,24 @@ fn get_resolution(reference_string: &str) -> usize {
         6 => 1_000,
         8 => 100,
         10 => 10,
-        _ => 1,
+        _ => 1, //TODO error?
     }
 }
 
 impl FromStr for Reference {
-    type Err = anyhow::Error;
+    type Err = BngError;
 
-    fn from_str(s: &str) -> anyhow::Result<Reference> {
-        let resolution: usize = get_resolution(&s);
+    fn from_str(s: &str) -> BngResult<Reference> {
+        let resolution: usize = get_resolution(s);
         let (letters, numbers): (&str, &str) = s.split_at(2);
+        //TODO validate numbers.len is even?
         let midpoint: usize = numbers.len() / 2;
         let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
         Ok(Reference {
             letters: letters.to_string(),
             eastings: Some(eastings.to_string()),
             northings: Some(northings.to_string()),
-            resolution: resolution,
+            resolution,
         })
     }
 }
@@ -65,25 +68,25 @@ impl fmt::Display for Reference {
             f,
             "{}{}{}",
             self.letters,
-            self.eastings.as_ref().unwrap(),
-            self.northings.as_ref().unwrap()
+            self.eastings.as_deref().unwrap_or("[Unknown]"),
+            self.northings.as_deref().unwrap_or("[Unknown]")
         )
     }
 }
 
 pub trait ToBngParts {
-    fn to_bng_parts(&self) -> (usize, String);
+    fn to_bng_parts(&self) -> BngResult<(usize, String)>;
 }
 
 impl<T> ToBngParts for T
 where
     T: CoordNum,
 {
-    fn to_bng_parts(&self) -> (usize, String) {
-        let coordinate: usize = cast(*self).unwrap();
+    fn to_bng_parts(&self) -> BngResult<(usize, String)> {
+        let coordinate: usize = cast(*self).ok_or_else(BngError::Badness)?;
         let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
         let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
-        (coordinate_quotient, coordinate_remainder)
+        Ok((coordinate_quotient, coordinate_remainder))
     }
 }
 
@@ -91,15 +94,15 @@ impl<T> TryFrom<Coordinate<T>> for Reference
 where
     T: CoordNum,
 {
-    type Error = ();
+    type Error = BngError;
 
     fn try_from(coordinate: Coordinate<T>) -> Result<Self, Self::Error> {
-        let (eastings_quotient, eastings_remainder) = coordinate.x.to_bng_parts();
-        let (northings_quotient, northings_remainder) = coordinate.y.to_bng_parts();
+        let (eastings_quotient, eastings_remainder) = coordinate.x.to_bng_parts()?;
+        let (northings_quotient, northings_remainder) = coordinate.y.to_bng_parts()?;
         Ok(Reference {
             letters: GRID[northings_quotient][eastings_quotient].to_string(),
-            eastings: Some(eastings_remainder.to_string()),
-            northings: Some(northings_remainder.to_string()),
+            eastings: Some(eastings_remainder),
+            northings: Some(northings_remainder),
             resolution: 1,
         })
     }
