@@ -1,11 +1,13 @@
 pub mod error;
+pub mod reference_string;
 
 use error::{BngError, BngResult};
 use geo_types::{CoordNum, Coordinate};
 use num::cast::cast;
 use num::Integer;
+use reference_string::ReferenceString;
+use std::convert::From;
 use std::fmt;
-use std::str::FromStr;
 
 const GRID: [[&str; 7]; 15] = [
     ["SV", "SW", "SX", "SY", "SZ", "TV", "TW"],
@@ -44,21 +46,19 @@ fn get_resolution(reference_string: &str) -> usize {
     }
 }
 
-impl FromStr for Reference {
-    type Err = BngError;
-
-    fn from_str(s: &str) -> BngResult<Reference> {
-        let resolution: usize = get_resolution(s);
-        let (letters, numbers): (&str, &str) = s.split_at(2);
-        //TODO validate numbers.len is even?
+impl From<ReferenceString> for Reference {
+    fn from(reference_string: ReferenceString) -> Self {
+        let string = reference_string.value();
+        let resolution: usize = get_resolution(string);
+        let (letters, numbers): (&str, &str) = string.split_at(2);
         let midpoint: usize = numbers.len() / 2;
         let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
-        Ok(Reference {
+        Reference {
             letters: letters.to_string(),
             eastings: Some(eastings.to_string()),
             northings: Some(northings.to_string()),
             resolution,
-        })
+        }
     }
 }
 
@@ -83,7 +83,7 @@ where
     T: CoordNum,
 {
     fn to_bng_parts(&self) -> BngResult<(usize, String)> {
-        let coordinate: usize = cast(*self).ok_or_else(BngError::Badness)?;
+        let coordinate: usize = cast(*self).unwrap();
         let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
         let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
         Ok((coordinate_quotient, coordinate_remainder))
