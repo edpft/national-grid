@@ -1,4 +1,4 @@
-use crate::error::{BngError, BngResult};
+use crate::bng_error::{BngError, BngResult};
 use regex::Regex;
 use std::str::FromStr;
 
