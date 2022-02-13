@@ -41,7 +41,7 @@ fn get_resolution(reference_string: &str) -> usize {
         6 => 1_000,
         8 => 100,
         10 => 10,
-        _ => 1, //TODO error?
+        _ => 1,
     }
 }
 
@@ -67,8 +67,8 @@ impl fmt::Display for Reference {
             f,
             "{}{}{}",
             self.letters,
-            self.eastings.as_deref().unwrap_or("[Unknown]"),
-            self.northings.as_deref().unwrap_or("[Unknown]")
+            self.eastings.as_deref().unwrap(),
+            self.northings.as_deref().unwrap()
         )
     }
 }
