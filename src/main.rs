@@ -1,12 +1,8 @@
-use anyhow;
-use geo_types::Coordinate;
-use national_grid::Reference;
+use national_grid::reference_string::ReferenceString;
+use std::str::FromStr;
 
 fn main() -> anyhow::Result<()> {
-    let coordinate = Coordinate {
-        x: 100_000,
-        y: 500_000,
-    };
-    let reference = Reference::try_from(coordinate);
-    Ok(println!("{:?}", reference.unwrap()))
+    let reference_string = ReferenceString::from_str("AB01234567891")?;
+    println!("{:?}", reference_string);
+    Ok(())
 }
