@@ -3,8 +3,7 @@ pub mod reference_string;
 
 use error::{BngError, BngResult};
 use geo_types::{CoordNum, Coordinate};
-use num::cast::cast;
-use num::Integer;
+use num::{cast, Integer};
 use reference_string::ReferenceString;
 use std::convert::From;
 use std::fmt;
@@ -83,7 +82,7 @@ where
     T: CoordNum,
 {
     fn to_bng_parts(&self) -> BngResult<(usize, String)> {
-        let coordinate: usize = cast(*self).unwrap();
+        let coordinate: usize = cast::cast(*self).unwrap();
         let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
         let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
         Ok((coordinate_quotient, coordinate_remainder))
