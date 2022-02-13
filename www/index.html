@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <form method="get">
+        <label>
+            Grid reference:
+            <input name="grid-reference" id="grid-reference-input" type="text">
+        </label>
+        <button type="submit" id="submit-grid-reference">convert!</button>
+        </br>
+        <label>
+            Coordinates:
+            <output name="coordinates" for="grid-reference" id="grid-reference-output"></output>
+        </label>
+    </form>
+    <script type="module">
+        import init, { reference_to_coordinates } from "../pkg/national_grid.js"
+        init()
+            .then(() => {
+                let input = document.getElementById("grid-reference-input");
+                let output = document.getElementById("grid-reference-output");
+                function updateOutput(event) {
+                    let coordinates = reference_to_coordinates(input.value);
+                    output.innerText = coordinates;
+                    event.preventDefault();
+                }
+                let submitButton = document.getElementById("submit-grid-reference");
+                submitButton.addEventListener("click", updateOutput)
+            })
+    </script>
+</body>
+
+</html>
