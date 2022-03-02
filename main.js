@@ -8,7 +8,7 @@ Array.from(tablinks).forEach(element => {
     })
 });
 
-import init, { reference_to_coordinates, coordinates_to_reference } from "../pkg/national_grid.js"
+import init, { reference_to_coordinates, coordinates_to_reference } from "./modules/national_grid.js"
 init()
     .then(() => {
         let reference_input = document.getElementById("reference-input");
