@@ -1,16 +1,25 @@
 mod bng_error;
+pub mod coordinate;
 pub mod reference;
-pub mod reference_string;
 
+use coordinate::BngCoordinates;
 use reference::Reference;
-use reference_string::ReferenceString;
+use std::convert::From;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
 
 #[wasm_bindgen]
-pub fn reference_to_coordinates(string: &str) -> String {
-    let reference_string = ReferenceString::from_str(string).unwrap();
-    let reference = Reference::from(reference_string);
-    let (easting, northing) = reference.to_coordinates();
-    format!("({}, {})", easting, northing)
+pub fn reference_to_coordinates(string: &str) -> JsValue {
+    let reference = Reference::from_str(string).unwrap();
+    let coordinates = BngCoordinates::from(reference);
+    JsValue::from_serde(&coordinates).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn coordinates_to_reference(eastings: f64, northings: f64) -> String {
+    let tuple = (eastings, northings);
+    let coordinates = BngCoordinates::try_from(tuple).unwrap();
+    let reference = Reference::from(coordinates);
+    format!("{}", reference)
 }

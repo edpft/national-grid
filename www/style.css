@@ -1,0 +1,26 @@
+.active {
+    display: block;
+}
+
+.inactive {
+    display: none;
+}
+
+.column-centre {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;        
+}
+
+.column-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: left;        
+}
+
+
+.main {
+    height: 100vh;
+}

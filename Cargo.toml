@@ -13,4 +13,5 @@ geo-types = "0.7.2"
 num = "0.4.0"
 regex = "1.5.4"
 anyhow = "1.0.53"
-wasm-bindgen = "0.2.79"
+wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }

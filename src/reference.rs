@@ -1,11 +1,12 @@
-// use crate::bng_error::{BngError, BngResult};
-use crate::reference_string::ReferenceString;
-// use geo_types::{CoordNum, Coordinate};
-// use num::{cast, Integer};
-use std::convert::From;
+use crate::bng_error::{BngError, BngResult};
+use crate::coordinate::{BngCoordinates, Eastings, Northings};
+use num::Integer;
+use regex::Regex;
 use std::fmt;
+use std::ops::Deref;
+use std::str::FromStr;
 
-const GRID: [[&str; 7]; 15] = [
+pub const GRID: [[&str; 7]; 15] = [
     ["SV", "SW", "SX", "SY", "SZ", "TV", "TW"],
     ["SQ", "SR", "SS", "ST", "SU", "TQ", "TR"],
     ["SL", "SM", "SN", "SO", "SP", "TL", "TM"],
@@ -23,14 +24,118 @@ const GRID: [[&str; 7]; 15] = [
     ["HA", "HB", "HC", "HD", "HE", "JA", "JB"],
 ];
 
-const GRIDSIZE: usize = 100_000;
+pub const GRIDSIZE: usize = 100_000;
+
+#[derive(Debug)]
+pub struct ReferenceString(String);
+
+impl Deref for ReferenceString {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromStr for ReferenceString {
+    type Err = BngError;
+
+    fn from_str(s: &str) -> BngResult<ReferenceString> {
+        let upper = s.to_uppercase();
+        let re = Regex::new(r"^[HJNOSW][^I](\d\d){0,5}$").unwrap();
+        if re.is_match(&upper) {
+            Ok(ReferenceString { 0: upper })
+        } else {
+            match upper {
+                upper if upper.len() == 1 => {
+                    Err(BngError::InvalidReferenceString("Too short".to_string()))
+                }
+                upper if upper.len() > 12 => {
+                    Err(BngError::InvalidReferenceString("Too long".to_string()))
+                }
+                upper if upper.len() % 2 != 0 => {
+                    Err(BngError::InvalidReferenceString("Odd".to_string()))
+                }
+                _ => Err(BngError::InvalidReferenceString(
+                    "Something else".to_string(),
+                )),
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BngLetters(String);
+
+impl Deref for BngLetters {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromStr for BngLetters {
+    type Err = BngError;
+
+    fn from_str(s: &str) -> BngResult<BngLetters> {
+        let upper = s.to_uppercase();
+        let re = Regex::new(r"^[HJNOSW][^I]$").unwrap();
+        if re.is_match(&upper) {
+            Ok(BngLetters { 0: upper })
+        } else {
+            match upper {
+                upper if upper.len() == 1 => Err(BngError::InvalidLetters("Too short".to_string())),
+                upper if upper.len() > 2 => Err(BngError::InvalidLetters("Too long".to_string())),
+                _ => Err(BngError::InvalidLetters("Something else".to_string())),
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BngCoordinateRemainder(String);
+
+impl Deref for BngCoordinateRemainder {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromStr for BngCoordinateRemainder {
+    type Err = BngError;
+
+    fn from_str(s: &str) -> BngResult<BngCoordinateRemainder> {
+        let upper = s.to_uppercase();
+        let re = Regex::new(r"^(\d){0,5}$").unwrap();
+        if re.is_match(&upper) {
+            Ok(BngCoordinateRemainder { 0: upper })
+        } else {
+            match upper {
+                upper if upper.len() > 5 => {
+                    Err(BngError::InvalidCoordinateRemainder("Too long".to_string()))
+                }
+                upper if upper.chars().any(|character| !character.is_numeric()) => {
+                    Err(BngError::InvalidCoordinateRemainder(
+                        "Contains non-numeric character".to_string(),
+                    ))
+                }
+                _ => Err(BngError::InvalidCoordinateRemainder(
+                    "Something else".to_string(),
+                )),
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Reference {
-    letters: String,
-    eastings: Option<String>,
-    northings: Option<String>,
-    resolution: usize,
+    pub letters: BngLetters,
+    pub eastings: Option<BngCoordinateRemainder>,
+    pub northings: Option<BngCoordinateRemainder>,
+    pub resolution: usize,
 }
 
 fn get_resolution(reference_string: &str) -> usize {
@@ -44,91 +149,80 @@ fn get_resolution(reference_string: &str) -> usize {
     }
 }
 
-impl Reference {
-    pub fn to_coordinates(&self) -> (usize, usize) {
-        let northings_quotient = GRID
-            .map(|element| element.contains(&&*self.letters))
-            .iter()
-            .position(|element| element == &true)
-            .unwrap();
-        let eastings_quotient = GRID[northings_quotient]
-            .iter()
-            .position(|element| element == &&self.letters)
-            .unwrap();
-        if self.northings.is_some() & self.eastings.is_some() {
-            let northings_string = self.northings.as_deref().unwrap();
-            let northings_remainder = northings_string.parse::<usize>().unwrap();
-            let northings = northings_quotient * GRIDSIZE + northings_remainder;
+impl FromStr for Reference {
+    type Err = BngError;
 
-            let eastings_string = self.eastings.as_deref().unwrap();
-            let eastings_remainder = eastings_string.parse::<usize>().unwrap();
-            let eastings = eastings_quotient * GRIDSIZE + eastings_remainder;
-
-            (eastings, northings)
+    fn from_str(s: &str) -> BngResult<Reference> {
+        let reference_string = ReferenceString::from_str(s)?;
+        let resolution: usize = get_resolution(reference_string.as_str());
+        if resolution == 100_000 {
+            Ok(Reference {
+                letters: BngLetters::from_str(reference_string.as_str()).unwrap(),
+                eastings: None,
+                northings: None,
+                resolution,
+            })
         } else {
-            (eastings_quotient * GRIDSIZE, northings_quotient * GRIDSIZE)
-        }
-    }
-}
-
-impl From<ReferenceString> for Reference {
-    fn from(reference_string: ReferenceString) -> Self {
-        let string = reference_string.value();
-        let resolution: usize = get_resolution(string);
-        let (letters, numbers): (&str, &str) = string.split_at(2);
-        let midpoint: usize = numbers.len() / 2;
-        let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
-        Reference {
-            letters: letters.to_string(),
-            eastings: Some(eastings.to_string()),
-            northings: Some(northings.to_string()),
-            resolution,
+            let (letters, numbers): (&str, &str) = reference_string.split_at(2);
+            let midpoint: usize = numbers.len() / 2;
+            let (eastings, northings): (&str, &str) = numbers.split_at(midpoint);
+            Ok(Reference {
+                letters: BngLetters::from_str(letters).unwrap(),
+                eastings: Some(BngCoordinateRemainder::from_str(eastings).unwrap()),
+                northings: Some(BngCoordinateRemainder::from_str(northings).unwrap()),
+                resolution,
+            })
         }
     }
 }
 
 impl fmt::Display for Reference {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{}{}",
-            self.letters,
-            self.eastings.as_deref().unwrap(),
-            self.northings.as_deref().unwrap()
-        )
+        let mut eastings = "";
+        if let Some(potential_eastings) = self.eastings.as_ref() {
+            eastings = potential_eastings.as_str();
+        };
+        let mut northings = "";
+        if let Some(potential_northings) = self.northings.as_ref() {
+            northings = potential_northings.as_str();
+        };
+        write!(f, "{}{}{}", self.letters.as_str(), eastings, northings,)
     }
 }
 
-// pub trait ToBngParts {
-//     fn to_bng_parts(&self) -> BngResult<(usize, String)>;
-// }
+pub trait ToBngParts {
+    fn to_bng_parts(&self) -> BngResult<(usize, String)>;
+}
 
-// impl<T> ToBngParts for T
-// where
-//     T: CoordNum,
-// {
-//     fn to_bng_parts(&self) -> BngResult<(usize, String)> {
-//         let coordinate: usize = cast::cast(*self).unwrap();
-//         let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
-//         let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
-//         Ok((coordinate_quotient, coordinate_remainder))
-//     }
-// }
+macro_rules! implement_to_bng_parts_for_structs {
+    ($($identity:ident),*) => {$(
+        impl ToBngParts for $identity {
+            fn to_bng_parts(&self) -> BngResult<(usize, String)> {
+                let coordinate: usize = **self;
+                let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
+                let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
+                Ok((coordinate_quotient, coordinate_remainder))
+            }
+        }
+    )*}
+}
 
-// impl<T> TryFrom<Coordinate<T>> for Reference
-// where
-//     T: CoordNum,
-// {
-//     type Error = BngError;
+implement_to_bng_parts_for_structs!(Eastings, Northings);
 
-//     fn try_from(coordinate: Coordinate<T>) -> Result<Self, Self::Error> {
-//         let (eastings_quotient, eastings_remainder) = coordinate.x.to_bng_parts()?;
-//         let (northings_quotient, northings_remainder) = coordinate.y.to_bng_parts()?;
-//         Ok(Reference {
-//             letters: GRID[northings_quotient][eastings_quotient].to_string(),
-//             eastings: Some(eastings_remainder),
-//             northings: Some(northings_remainder),
-//             resolution: 1,
-//         })
-//     }
-// }
+impl From<BngCoordinates> for Reference {
+    fn from(coordinate: BngCoordinates) -> Self {
+        let (eastings_quotient, eastings_remainder) = coordinate.eastings.to_bng_parts().unwrap();
+        let (northings_quotient, northings_remainder) =
+            coordinate.northings.to_bng_parts().unwrap();
+        let letter_string = GRID[northings_quotient][eastings_quotient];
+        let letters = BngLetters::from_str(letter_string).unwrap();
+        let eastings = BngCoordinateRemainder::from_str(&eastings_remainder).unwrap();
+        let northings = BngCoordinateRemainder::from_str(&northings_remainder).unwrap();
+        Reference {
+            letters: letters,
+            eastings: Some(eastings),
+            northings: Some(northings),
+            resolution: 1,
+        }
+    }
+}
