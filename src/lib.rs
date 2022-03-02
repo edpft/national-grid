@@ -1,4 +1,5 @@
 mod bng_error;
+pub mod constants;
 pub mod coordinate;
 pub mod reference;
 
