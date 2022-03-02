@@ -15,14 +15,14 @@
             <button class="tab-links" data-tab-content="reference-to-coordinates">Reference to coordinates</button>
             <button class="tab-links" data-tab-content="coordinates-to-reference">Coordinates to reference</button>
         </div>
-        <div class="tab-content active" id="reference-to-coordinates">
+        <div class="tab-content column-centre" id="reference-to-coordinates">
             <form method="get">
                 <fieldset>
                     <legend> Grid reference</legend>
                     <input name="reference" id="reference-input" type="text"
                         placeholder="Enter a BNG grid reference...">
-                    <button type="submit" id="submit-reference">convert!</button>
                 </fieldset>
+                <button type="submit" id="submit-reference">convert!</button>
                 <fieldset>
                     <legend>Coordinates</legend>
                     <div class="column-left">
@@ -52,8 +52,8 @@
                             <input name="northings" id="northings-input" type="number">
                         </label>
                     </div>
-                    <button type="submit" id="submit-coordinates">convert!</button>
                 </fieldset>
+                <button type="submit" id="submit-coordinates">convert!</button>
                 <fieldset>
                     <legend>Reference</legend>
                     <output name="reference" for="coordinates" id="reference-output"></output>

@@ -3,9 +3,9 @@ export const openTab = (tabName) => {
     Array.from(tabContent).forEach(element => {
         if (element.id == tabName) {
             element.classList.remove("inactive");
-            element.classList.add("active");
+            element.classList.add("column-centre");
         } else {
-            element.classList.remove("active");
+            element.classList.remove("column-centre");
             element.classList.add("inactive");
         }
     });
