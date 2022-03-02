@@ -1,0 +1,9 @@
+{
+  "name": "national-grid",
+  "license": "MIT",
+  "version": "0.1.0",
+  "dependencies": {},
+  "devDependencies": {
+    "webpack": "^5.69.1"
+  }
+}
