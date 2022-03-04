@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main>
+        <div class="tab-container">
+            <div class="tabs">
+                <button class="tab tab-selected" id="reference-to-coordinates">Reference to coordinates</button>
+                <button class="tab tab-deselected" id="coordinates-to-reference">Coordinates to reference</button>
+            </div>
+            <form class="tab-content" method="get" id="reference-to-coordinates">
+                <label for="reference-input" class="both-columns"> Grid reference</label>
+                <input class="both-columns" name="reference" id="reference-input" type="text"
+                    placeholder="Enter a BNG grid reference...">
+                <button class="both-columns" type="submit" id="submit-reference">convert!</button>
+                <label for="eastings-output" class="first-column">Eastings</label>
+                <output class="first-column" name="eastings" id="eastings-output" type="number">...</output>
+                <label for="northings-output" class="second-column">Northings</label>
+                <output class="second-column" name="northings" id="northings-output" type="number">...</output>
+            </form>
+            <form method="get" class="tab-content inactive" id="coordinates-to-reference">
+                <label for="eastings-input" class="first-column">Eastings</label>
+                <input class="first-column" name="eastings" id="eastings-output" type="number"></input>
+                <label for="northings-input" class="second-column">Northings</label>
+                <input class="second-column" name="northings" id="northings-input" type="number">
+                <button class="both-columns" type="submit" id="submit-coordinates">convert!</button>
+                <label for="reference-output" class="both-columns"> Grid reference</label>
+                <output class="both-columns" name="reference" id="reference-output" type="text">...</output>
+            </form>
+        </div>
+    </main>
+    </div>
+    <script type="module" src="../js/main.js"></script>
+</body>
+
+</html>
