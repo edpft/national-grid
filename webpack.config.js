@@ -10,7 +10,7 @@ module.exports = {
   output: {
     publicPath: "",
     path: docs,
-    filename: "[name].js"
+    filename: "bundle.js"
   },
   experiments: {
     asyncWebAssembly: true,
