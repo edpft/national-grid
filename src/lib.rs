@@ -22,5 +22,5 @@ pub fn coordinates_to_reference(eastings: f64, northings: f64) -> String {
     let tuple = (eastings, northings);
     let coordinates = BngCoordinates::try_from(tuple).unwrap();
     let reference = Reference::try_from(coordinates).unwrap();
-    format!("{}", reference)
+    reference.to_string()
 }

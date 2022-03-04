@@ -14,10 +14,10 @@ import("../pkg/index.js").then(module => {
     let eastings_output = document.getElementById("eastings-output");
     let northings_output = document.getElementById("northings-output");
     function updateCoordinatesOutput(event) {
+        event.preventDefault();
         let coordinates = module.reference_to_coordinates(reference_input.value);
         eastings_output.value = coordinates.eastings;
         northings_output.value = coordinates.northings;
-        event.preventDefault();
     }
     let submitReference = document.getElementById("submit-reference");
     submitReference.addEventListener("click", updateCoordinatesOutput)
@@ -26,10 +26,10 @@ import("../pkg/index.js").then(module => {
     let northings_input = document.getElementById("northings-input");
     let reference_output = document.getElementById("reference-output");
     function updateReferenceOutput(event) {
+        event.preventDefault();
         let reference = module.coordinates_to_reference(eastings_input.value, northings_input.value);
         reference_output.value = reference;
-        event.preventDefault();
     }
     let submitCoordinates = document.getElementById("submit-coordinates");
     submitCoordinates.addEventListener("click", updateReferenceOutput)
-})
+}).catch(e => console.error(e))
