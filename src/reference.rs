@@ -1,5 +1,5 @@
 use crate::bng_error::{BngError, BngResult};
-use crate::constants::GRID;
+use crate::constants::{GRID, GRIDSIZE};
 use crate::coordinate::{BngCoordinates, Eastings, Northings};
 use num::Integer;
 use regex::Regex;
@@ -171,39 +171,79 @@ impl fmt::Display for Reference {
     }
 }
 
-pub trait ToBngParts {
-    fn to_bng_parts(&self) -> BngResult<(usize, String)>;
+pub struct BngParts {
+    quotient: usize,
+    remainder: BngCoordinateRemainder,
 }
 
-macro_rules! implement_to_bng_parts_for_structs {
+impl BngParts {
+    fn new(quotient: usize, remainder: BngCoordinateRemainder) -> Self {
+        BngParts {
+            quotient: quotient,
+            remainder: remainder,
+        }
+    }
+}
+
+macro_rules! implement_try_from_for_bng_parts {
     ($($identity:ident),*) => {$(
-        impl ToBngParts for $identity {
-            fn to_bng_parts(&self) -> BngResult<(usize, String)> {
-                let coordinate: usize = **self;
-                let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&100_000usize);
-                let coordinate_remainder = format!("{:0>5}", coordinate_remainder);
-                Ok((coordinate_quotient, coordinate_remainder))
+        impl TryFrom<$identity> for BngParts {
+            type Error = BngError;
+            fn try_from(coordinate: $identity) -> BngResult<BngParts> {
+                let (coordinate_quotient, coordinate_remainder) = coordinate.div_rem(&GRIDSIZE);
+                let coordinate_remainder_string = format!("{:0>5}", coordinate_remainder);
+                let coordinate_remainder = BngCoordinateRemainder::from_str(&coordinate_remainder_string)?;
+                Ok(BngParts::new(coordinate_quotient, coordinate_remainder))
             }
         }
     )*}
 }
 
-implement_to_bng_parts_for_structs!(Eastings, Northings);
+implement_try_from_for_bng_parts!(Eastings, Northings);
 
-impl From<BngCoordinates> for Reference {
-    fn from(coordinate: BngCoordinates) -> Self {
-        let (eastings_quotient, eastings_remainder) = coordinate.eastings.to_bng_parts().unwrap();
-        let (northings_quotient, northings_remainder) =
-            coordinate.northings.to_bng_parts().unwrap();
-        let letter_string = GRID[northings_quotient][eastings_quotient];
-        let letters = BngLetters::from_str(letter_string).unwrap();
-        let eastings = BngCoordinateRemainder::from_str(&eastings_remainder).unwrap();
-        let northings = BngCoordinateRemainder::from_str(&northings_remainder).unwrap();
-        Reference {
-            letters: letters,
-            eastings: Some(eastings),
-            northings: Some(northings),
-            resolution: 1,
+pub struct BngCoordinateParts {
+    eastings: BngParts,
+    northings: BngParts,
+}
+
+impl BngCoordinateParts {
+    fn new(eastings: BngParts, northings: BngParts) -> Self {
+        BngCoordinateParts {
+            eastings: eastings,
+            northings: northings,
         }
+    }
+}
+
+impl TryFrom<BngCoordinates> for BngCoordinateParts {
+    type Error = BngError;
+    fn try_from(coordinate: BngCoordinates) -> BngResult<Self> {
+        let eastings_parts = BngParts::try_from(coordinate.eastings)?;
+        let northings_parts = BngParts::try_from(coordinate.northings)?;
+        Ok(BngCoordinateParts::new(eastings_parts, northings_parts))
+    }
+}
+
+impl TryFrom<BngCoordinateParts> for Reference {
+    type Error = BngError;
+    fn try_from(coordinate_parts: BngCoordinateParts) -> BngResult<Self> {
+        let letter_string =
+            GRID[coordinate_parts.eastings.quotient][coordinate_parts.northings.quotient];
+        let letters = BngLetters::from_str(letter_string).unwrap();
+        Ok(Reference {
+            letters: letters,
+            eastings: Some(coordinate_parts.eastings.remainder),
+            northings: Some(coordinate_parts.northings.remainder),
+            resolution: 1,
+        })
+    }
+}
+
+impl TryFrom<BngCoordinates> for Reference {
+    type Error = BngError;
+    fn try_from(coordinate: BngCoordinates) -> BngResult<Self> {
+        let parts = BngCoordinateParts::try_from(coordinate)?;
+        let reference = Reference::try_from(parts)?;
+        Ok(reference)
     }
 }
