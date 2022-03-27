@@ -7,6 +7,7 @@ pub enum BngError {
     NegativeNumber(String),
     InvalidLetters(String),
     InvalidCoordinateRemainder(String),
+    Other(String),
 }
 
 impl std::fmt::Display for BngError {
@@ -18,6 +19,7 @@ impl std::fmt::Display for BngError {
             BngError::NegativeNumber(string) => write!(f, "{}", string),
             BngError::InvalidLetters(string) => write!(f, "{}", string),
             BngError::InvalidCoordinateRemainder(string) => write!(f, "{}", string),
+            BngError::Other(string) => write!(f, "{}", string),
         }
     }
 }
@@ -31,6 +33,7 @@ impl std::fmt::Debug for BngError {
             Self::NegativeNumber(string) => f.debug_tuple(string).finish(),
             Self::InvalidLetters(string) => f.debug_tuple(string).finish(),
             Self::InvalidCoordinateRemainder(string) => f.debug_tuple(string).finish(),
+            Self::Other(string) => f.debug_tuple(string).finish(),
         }
     }
 }
