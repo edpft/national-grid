@@ -4,7 +4,7 @@ use crate::coordinate::{BngCoordinates, Eastings, Northings};
 use num::Integer;
 use regex::Regex;
 use std::fmt;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl FromStr for ReferenceString {
 
     fn from_str(s: &str) -> BngResult<ReferenceString> {
         let upper = s.to_uppercase();
-        let re = Regex::new(r"^[HJNOSW][^I](\d\d){0,5}$").unwrap();
+        let re = Regex::new(r"^[HJNOST][^I](\d\d){0,5}$").unwrap();
         if re.is_match(&upper) {
             Ok(ReferenceString { 0: upper })
         } else {
@@ -61,7 +61,7 @@ impl FromStr for BngLetters {
 
     fn from_str(s: &str) -> BngResult<BngLetters> {
         let upper = s.to_uppercase();
-        let re = Regex::new(r"^[HJNOSW][^I]$").unwrap();
+        let re = Regex::new(r"^[HJNOST][^I]$").unwrap();
         if re.is_match(&upper) {
             Ok(BngLetters { 0: upper })
         } else {
@@ -77,11 +77,43 @@ impl FromStr for BngLetters {
 #[derive(Debug)]
 pub struct BngCoordinateRemainder(String);
 
+impl BngCoordinateRemainder {
+    pub fn reduce_resolution(
+        self,
+        from_resolution: usize,
+        to_resolution: usize,
+    ) -> BngResult<BngCoordinateRemainder> {
+        let coordinate_remainder_string = self.deref().as_str();
+        let coordinate_remainder_length = coordinate_remainder_string.len();
+
+        let from_resolution = from_resolution as f32;
+        let from_resolution_digits = from_resolution.log10();
+
+        let to_resolution = to_resolution as f32;
+        let to_resolution_digits = to_resolution.log10();
+
+        let difference = to_resolution_digits - from_resolution_digits;
+        let difference = difference as usize;
+
+        let mid_point = coordinate_remainder_length - difference;
+
+        let split = coordinate_remainder_string.split_at(mid_point);
+
+        return BngCoordinateRemainder::from_str(split.0);
+    }
+}
+
 impl Deref for BngCoordinateRemainder {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for BngCoordinateRemainder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -130,6 +162,32 @@ fn get_resolution(reference_string: &str) -> usize {
     }
 }
 
+impl Reference {
+    pub fn reduce_resolution(self, to_resolution: usize) -> BngResult<Reference> {
+        let from_resolution = self.resolution;
+        if to_resolution < from_resolution {
+            Err(BngError::Other("Cannot increase resolution.".to_string()))
+        } else if to_resolution == from_resolution {
+            Ok(self)
+        } else {
+            let eastings = self
+                .eastings
+                .unwrap()
+                .reduce_resolution(from_resolution, to_resolution)?;
+            let northings = self
+                .northings
+                .unwrap()
+                .reduce_resolution(from_resolution, to_resolution)?;
+            Ok(Reference {
+                letters: self.letters,
+                eastings: Some(eastings),
+                northings: Some(northings),
+                resolution: to_resolution,
+            })
+        }
+    }
+}
+
 impl FromStr for Reference {
     type Err = BngError;
 
@@ -171,9 +229,10 @@ impl fmt::Display for Reference {
     }
 }
 
+#[derive(Debug)]
 pub struct BngParts {
-    quotient: usize,
-    remainder: BngCoordinateRemainder,
+    pub quotient: usize,
+    pub remainder: BngCoordinateRemainder,
 }
 
 impl BngParts {
@@ -201,9 +260,10 @@ macro_rules! implement_try_from_for_bng_parts {
 
 implement_try_from_for_bng_parts!(Eastings, Northings);
 
+#[derive(Debug)]
 pub struct BngCoordinateParts {
-    eastings: BngParts,
-    northings: BngParts,
+    pub eastings: BngParts,
+    pub northings: BngParts,
 }
 
 impl BngCoordinateParts {
@@ -228,7 +288,7 @@ impl TryFrom<BngCoordinateParts> for Reference {
     type Error = BngError;
     fn try_from(coordinate_parts: BngCoordinateParts) -> BngResult<Self> {
         let letter_string =
-            GRID[coordinate_parts.eastings.quotient][coordinate_parts.northings.quotient];
+            GRID[coordinate_parts.northings.quotient][coordinate_parts.eastings.quotient];
         let letters = BngLetters::from_str(letter_string).unwrap();
         Ok(Reference {
             letters: letters,
